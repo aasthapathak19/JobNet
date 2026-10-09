@@ -1,11 +1,11 @@
 import React from 'react'
-import { Bookmark, BookmarkCheck, MapPin, Clock, Briefcase, Building2, Wifi, WifiOff, Users } from 'lucide-react'
+import { Bookmark, BookmarkCheck, MapPin, Clock, Briefcase, Wifi, WifiOff, Users } from 'lucide-react'
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar'
 import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { useNavigate } from 'react-router-dom'
-import { useDispatch, useSelector } from 'react-redux'
-import { toggleSaveJob } from '@/redux/jobSlice'
+import { useSelector } from 'react-redux'
+import useSavedJobActions from '@/hooks/useSavedJobActions'
 import { formatSalary, timeAgo, getSkillMatch } from '@/utils/searchUtils'
 
 const RemoteBadge = ({ remoteType }) => {
@@ -25,11 +25,11 @@ const RemoteBadge = ({ remoteType }) => {
 
 const Job = ({ job }) => {
     const navigate = useNavigate();
-    const dispatch = useDispatch();
-    const { savedJobs, allAppliedJobs } = useSelector(store => store.job);
+    const { allAppliedJobs } = useSelector(store => store.job);
     const { user } = useSelector(store => store.auth);
+    const { isSaved: getIsSaved, toggleSaved } = useSavedJobActions();
     
-    const isSaved = savedJobs?.includes(job?._id);
+    const isSaved = getIsSaved(job?._id);
     const isApplied = allAppliedJobs?.some(app => app?.job?._id === job?._id || app?.job === job?._id);
     
     const userSkills = user?.profile?.skills || [];
@@ -37,7 +37,7 @@ const Job = ({ job }) => {
 
     const handleSave = (e) => {
         e.stopPropagation();
-        dispatch(toggleSaveJob(job?._id));
+        toggleSaved(job);
     };
 
     const handleClick = () => {

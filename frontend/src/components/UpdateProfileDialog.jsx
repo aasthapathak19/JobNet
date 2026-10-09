@@ -5,7 +5,7 @@ import { Input } from './ui/input'
 import { Button } from './ui/button'
 import { Loader2 } from 'lucide-react'
 import { useDispatch, useSelector } from 'react-redux'
-import axios from 'axios'
+import api, { getErrorMessage } from '@/lib/api'
 import { USER_API_END_POINT } from '@/utils/constant'
 import { setUser } from '@/redux/authSlice'
 import { toast } from 'sonner'
@@ -20,7 +20,8 @@ const UpdateProfileDialog = ({ open, setOpen }) => {
         phoneNumber: user?.phoneNumber || "",
         bio: user?.profile?.bio || "",
         skills: user?.profile?.skills?.map(skill => skill) || "",
-        file: user?.profile?.resume || ""
+        file: "",
+        profilePhotoFile: ""
     });
     const dispatch = useDispatch();
 
@@ -31,6 +32,10 @@ const UpdateProfileDialog = ({ open, setOpen }) => {
     const fileChangeHandler = (e) => {
         const file = e.target.files?.[0];
         setInput({ ...input, file })
+    }
+
+    const photoChangeHandler = (e) => {
+        setInput({ ...input, profilePhotoFile: e.target.files?.[0] || "" });
     }
 
     const submitHandler = async (e) => {
@@ -46,19 +51,19 @@ const UpdateProfileDialog = ({ open, setOpen }) => {
         }
         try {
             setLoading(true);
-            const res = await axios.post(`${USER_API_END_POINT}/profile/update`, formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data'
-                },
-                withCredentials: true
-            });
+            const res = await api.post(`${USER_API_END_POINT}/profile/update`, formData);
             if (res.data.success) {
                 dispatch(setUser(res.data.user));
-                toast.success(res.data.message);
+                if (input.profilePhotoFile) {
+                    const photoData = new FormData();
+                    photoData.append("file", input.profilePhotoFile);
+                    const photoResponse = await api.post(`${USER_API_END_POINT}/profile/photo`, photoData);
+                    dispatch(setUser(photoResponse.data.user));
+                }
+                toast.success("Profile updated successfully");
             }
         } catch (error) {
-            console.log(error);
-            toast.error(error.response.data.message);
+            toast.error(getErrorMessage(error, "Unable to update profile"));
         } finally{
             setLoading(false);
         }
@@ -70,18 +75,18 @@ const UpdateProfileDialog = ({ open, setOpen }) => {
 
     return (
         <div>
-            <Dialog open={open}>
-                <DialogContent className="sm:max-w-[425px]" onInteractOutside={() => setOpen(false)}>
+            <Dialog open={open} onOpenChange={setOpen}>
+                <DialogContent className="sm:max-w-[425px]">
                     <DialogHeader>
                         <DialogTitle>Update Profile</DialogTitle>
                     </DialogHeader>
                     <form onSubmit={submitHandler}>
                         <div className='grid gap-4 py-4'>
                             <div className='grid grid-cols-4 items-center gap-4'>
-                                <Label htmlFor="name" className="text-right">Name</Label>
+                                <Label htmlFor="fullname" className="text-right">Name</Label>
                                 <Input
-                                    id="name"
-                                    name="name"
+                                    id="fullname"
+                                    name="fullname"
                                     type="text"
                                     value={input.fullname}
                                     onChange={changeEventHandler}
@@ -100,10 +105,10 @@ const UpdateProfileDialog = ({ open, setOpen }) => {
                                 />
                             </div>
                             <div className='grid grid-cols-4 items-center gap-4'>
-                                <Label htmlFor="number" className="text-right">Number</Label>
+                                <Label htmlFor="phoneNumber" className="text-right">Number</Label>
                                 <Input
-                                    id="number"
-                                    name="number"
+                                    id="phoneNumber"
+                                    name="phoneNumber"
                                     value={input.phoneNumber}
                                     onChange={changeEventHandler}
                                     className="col-span-3"
@@ -130,12 +135,23 @@ const UpdateProfileDialog = ({ open, setOpen }) => {
                                 />
                             </div>
                             <div className='grid grid-cols-4 items-center gap-4'>
+                                <Label htmlFor="profilePhoto" className="text-right">Photo</Label>
+                                <Input
+                                    id="profilePhoto"
+                                    name="profilePhoto"
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    onChange={photoChangeHandler}
+                                    className="col-span-3"
+                                />
+                            </div>
+                            <div className='grid grid-cols-4 items-center gap-4'>
                                 <Label htmlFor="file" className="text-right">Resume</Label>
                                 <Input
                                     id="file"
                                     name="file"
                                     type="file"
-                                    accept="application/pdf"
+                                    accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                                     onChange={fileChangeHandler}
                                     className="col-span-3"
                                 />

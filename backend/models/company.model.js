@@ -4,7 +4,9 @@ const companySchema = new mongoose.Schema({
     name:{
         type:String,
         required:true,
-        unique:true
+        unique:true,
+        trim:true,
+        maxlength:120,
     },
     description:{
         type:String, 
@@ -24,4 +26,8 @@ const companySchema = new mongoose.Schema({
         required:true
     }
 },{timestamps:true})
+
+companySchema.index({ userId: 1, createdAt: -1 });
+
 export const Company = mongoose.model("Company", companySchema);
+export default Company;

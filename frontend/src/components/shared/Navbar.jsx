@@ -5,7 +5,7 @@ import { Avatar, AvatarImage, AvatarFallback } from '../ui/avatar'
 import { LogOut, User2, Briefcase, Menu, X } from 'lucide-react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useDispatch, useSelector } from 'react-redux'
-import axios from 'axios'
+import api, { getErrorMessage } from '@/lib/api'
 import { USER_API_END_POINT } from '@/utils/constant'
 import { setUser } from '@/redux/authSlice'
 import { toast } from 'sonner'
@@ -19,15 +19,14 @@ const Navbar = () => {
 
     const logoutHandler = async () => {
         try {
-            const res = await axios.get(`${USER_API_END_POINT}/logout`, { withCredentials: true });
+            const res = await api.post(`${USER_API_END_POINT}/logout`);
             if (res.data.success) {
                 dispatch(setUser(null));
                 navigate("/");
                 toast.success(res.data.message);
             }
         } catch (error) {
-            console.log(error);
-            toast.error(error.response?.data?.message || "Logout failed");
+            toast.error(getErrorMessage(error, "Logout failed"));
         }
     }
 
@@ -63,12 +62,14 @@ const Navbar = () => {
                     <ul className='flex font-medium items-center gap-6'>
                         {user && user.role === 'recruiter' ? (
                             <>
+                                <li><NavLink to="/admin/dashboard">Dashboard</NavLink></li>
                                 <li><NavLink to="/admin/companies">Companies</NavLink></li>
                                 <li><NavLink to="/admin/jobs">Jobs</NavLink></li>
                             </>
                         ) : (
                             <>
                                 <li><NavLink to="/">Home</NavLink></li>
+                                {user?.role === 'student' && <li><NavLink to="/dashboard">Dashboard</NavLink></li>}
                                 <li><NavLink to="/jobs">Jobs</NavLink></li>
                                 <li><NavLink to="/browse">Browse</NavLink></li>
                             </>
@@ -155,12 +156,14 @@ const Navbar = () => {
                 <div className="md:hidden border-t border-gray-100 bg-white px-4 py-4 space-y-3">
                     {user && user.role === 'recruiter' ? (
                         <>
+                            <Link to="/admin/dashboard" className="block text-sm text-gray-700 py-2" onClick={() => setMobileOpen(false)}>Dashboard</Link>
                             <Link to="/admin/companies" className="block text-sm text-gray-700 py-2" onClick={() => setMobileOpen(false)}>Companies</Link>
                             <Link to="/admin/jobs" className="block text-sm text-gray-700 py-2" onClick={() => setMobileOpen(false)}>Jobs</Link>
                         </>
                     ) : (
                         <>
                             <Link to="/" className="block text-sm text-gray-700 py-2" onClick={() => setMobileOpen(false)}>Home</Link>
+                            {user?.role === 'student' && <Link to="/dashboard" className="block text-sm text-gray-700 py-2" onClick={() => setMobileOpen(false)}>Dashboard</Link>}
                             <Link to="/jobs" className="block text-sm text-gray-700 py-2" onClick={() => setMobileOpen(false)}>Jobs</Link>
                             <Link to="/browse" className="block text-sm text-gray-700 py-2" onClick={() => setMobileOpen(false)}>Browse</Link>
                         </>

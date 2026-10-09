@@ -406,6 +406,7 @@ export function filtersToURLParams(filters = {}) {
     if (filters.experience) params.set("exp", filters.experience);
     if (filters.remoteType) params.set("remote", filters.remoteType);
     if (filters.sort && filters.sort !== "recent") params.set("sort", filters.sort);
+    if (filters.page && filters.page > 1) params.set("page", String(filters.page));
     return params;
 }
 
@@ -421,6 +422,7 @@ export function urlParamsToFilters(searchParams) {
         experience: searchParams.get("exp") || "",
         remoteType: searchParams.get("remote") || "",
         sort: searchParams.get("sort") || "recent",
+        page: Math.max(1, Number(searchParams.get("page")) || 1),
     };
 }
 
@@ -429,8 +431,8 @@ export function urlParamsToFilters(searchParams) {
  */
 export function hasActiveFilters(filters = {}) {
     return Object.entries(filters).some(([key, val]) => {
-        if (key === "sort") return false;
-        return val && val.trim() !== "";
+        if (key === "sort" || key === "page") return false;
+        return typeof val === "string" ? val.trim() !== "" : Boolean(val);
     });
 }
 

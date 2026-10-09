@@ -1,6 +1,6 @@
 import { setAllJobs, setJobsLoading } from '@/redux/jobSlice'
 import { JOB_API_END_POINT } from '@/utils/constant'
-import axios from 'axios'
+import api from '@/lib/api'
 import { useEffect } from 'react'
 import { useDispatch, useSelector } from 'react-redux'
 
@@ -9,6 +9,7 @@ const useGetAllJobs = () => {
     const { filters = {} } = useSelector(store => store.job);
 
     useEffect(() => {
+        const controller = new AbortController();
         const fetchAllJobs = async () => {
             dispatch(setJobsLoading(true));
             try {
@@ -18,6 +19,8 @@ const useGetAllJobs = () => {
                 if (filters?.location) params.set('location', filters.location);
                 if (filters?.category) params.set('category', filters.category);
                 if (filters?.sort) params.set('sort', filters.sort);
+                if (filters?.page) params.set('page', filters.page);
+                params.set('limit', '12');
 
                 // Parse salary range for backend
                 if (filters?.salaryRange) {
@@ -36,20 +39,24 @@ const useGetAllJobs = () => {
                 if (filters?.remoteType) params.set('remoteType', filters.remoteType);
 
                 const url = `${JOB_API_END_POINT}/get?${params.toString()}`;
-                const res = await axios.get(url, { withCredentials: true });
+                const res = await api.get(url, { signal: controller.signal });
                 if (res.data.success) {
-                    dispatch(setAllJobs(res.data.jobs));
+                    dispatch(setAllJobs({ jobs: res.data.jobs, pagination: res.data.pagination }));
                 }
             } catch (error) {
-                console.error('Failed to fetch jobs:', error);
+                if (error.code !== 'ERR_CANCELED') console.error('Failed to fetch jobs:', error);
             } finally {
-                dispatch(setJobsLoading(false));
+                if (!controller.signal.aborted) dispatch(setJobsLoading(false));
             }
         }
-        fetchAllJobs();
+        const timer = window.setTimeout(fetchAllJobs, filters?.query ? 300 : 0);
+        return () => {
+            window.clearTimeout(timer);
+            controller.abort();
+        };
     // Re-fetch when filters change
     }, [filters?.query, filters?.location, filters?.category, filters?.salaryRange,
-        filters?.experience, filters?.remoteType, filters?.sort]);
+        filters?.experience, filters?.remoteType, filters?.sort, filters?.page, dispatch]);
 }
 
 export default useGetAllJobs

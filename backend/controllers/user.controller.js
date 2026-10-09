@@ -1,171 +1,109 @@
-import { User } from "../models/user.model.js";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
-import getDataUri from "../utils/datauri.js";
-import cloudinary from "../utils/cloudinary.js";
+import User from "../models/user.model.js";
+import { env } from "../config/env.js";
+import { AppError } from "../utils/appError.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
+import { storeUploadedFile } from "../utils/fileStorage.js";
 
-export const register = async (req, res) => {
-    try {
-        const { fullname, email, phoneNumber, password, role } = req.body;
-         
-        if (!fullname || !email || !phoneNumber || !password || !role) {
-            return res.status(400).json({
-                message: "Something is missing",
-                success: false
-            });
-        };
-        const file = req.file;
-        const fileUri = getDataUri(file);
-        const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
+const publicUser = (user) => {
+    const value = user.toObject ? user.toObject() : { ...user };
+    delete value.password;
+    return value;
+};
 
-        const user = await User.findOne({ email });
-        if (user) {
-            return res.status(400).json({
-                message: 'User already exist with this email.',
-                success: false,
-            })
-        }
-        const hashedPassword = await bcrypt.hash(password, 10);
+const cookieOptions = {
+    httpOnly: true,
+    secure: env.COOKIE_SECURE || env.NODE_ENV === "production",
+    sameSite: env.COOKIE_SAME_SITE,
+    maxAge: env.COOKIE_MAX_AGE_MS,
+    path: "/",
+};
 
-        await User.create({
-            fullname,
-            email,
-            phoneNumber,
-            password: hashedPassword,
-            role,
-            profile:{
-                profilePhoto:cloudResponse.secure_url,
-            }
-        });
+export const register = asyncHandler(async (req, res) => {
+    const { fullname, email, phoneNumber, password, role } = req.body;
+    const existingUser = await User.exists({ email });
+    if (existingUser) throw new AppError("An account with this email already exists", 409, "EMAIL_IN_USE");
 
-        return res.status(201).json({
-            message: "Account created successfully.",
-            success: true
-        });
-    } catch (error) {
-        console.log(error);
+    const user = await User.create({
+        fullname,
+        email,
+        phoneNumber,
+        password: await bcrypt.hash(password, 12),
+        role,
+        profile: { profilePhoto: await storeUploadedFile(req.file, "profile-images") || "" },
+    });
+
+    res.status(201).json({ message: "Account created successfully", success: true, user: publicUser(user) });
+});
+
+export const login = asyncHandler(async (req, res) => {
+    const { email, password, role } = req.body;
+    const user = await User.findOne({ email }).select("+password");
+
+    if (!user || !(await bcrypt.compare(password, user.password)) || (role && role !== user.role)) {
+        throw new AppError("Email, password, or role is incorrect", 401, "INVALID_CREDENTIALS");
     }
-}
-export const login = async (req, res) => {
-    try {
-        const { email, password, role } = req.body;
-        
-        if (!email || !password || !role) {
-            return res.status(400).json({
-                message: "Something is missing",
-                success: false
-            });
-        };
-        let user = await User.findOne({ email });
-        if (!user) {
-            return res.status(400).json({
-                message: "Incorrect email or password.",
-                success: false,
-            })
-        }
-        const isPasswordMatch = await bcrypt.compare(password, user.password);
-        if (!isPasswordMatch) {
-            return res.status(400).json({
-                message: "Incorrect email or password.",
-                success: false,
-            })
-        };
-        // check role is correct or not
-        if (role !== user.role) {
-            return res.status(400).json({
-                message: "Account doesn't exist with current role.",
-                success: false
-            })
-        };
 
-        const tokenData = {
-            userId: user._id
-        }
-        const token = await jwt.sign(tokenData, process.env.SECRET_KEY, { expiresIn: '1d' });
+    const token = jwt.sign({ userId: user._id.toString() }, env.jwtSecret, { expiresIn: env.JWT_EXPIRES_IN });
+    res.cookie(env.COOKIE_NAME, token, cookieOptions).json({
+        message: `Welcome back ${user.fullname}`,
+        user: publicUser(user),
+        success: true,
+    });
+});
 
-        user = {
-            _id: user._id,
-            fullname: user.fullname,
-            email: user.email,
-            phoneNumber: user.phoneNumber,
-            role: user.role,
-            profile: user.profile
-        }
+export const logout = asyncHandler(async (_req, res) => {
+    res.clearCookie(env.COOKIE_NAME, { ...cookieOptions, maxAge: undefined }).json({
+        message: "Logged out successfully",
+        success: true,
+    });
+});
 
-        return res.status(200).cookie("token", token, { maxAge: 1 * 24 * 60 * 60 * 1000, httpsOnly: true, sameSite: 'strict' }).json({
-            message: `Welcome back ${user.fullname}`,
-            user,
-            success: true
-        })
-    } catch (error) {
-        console.log(error);
+export const getCurrentUser = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.id);
+    if (!user) throw new AppError("User not found", 404, "USER_NOT_FOUND");
+    res.json({ success: true, user: publicUser(user) });
+});
+
+export const updateProfile = asyncHandler(async (req, res) => {
+    const { fullname, email, phoneNumber, bio, skills } = req.body;
+    const user = await User.findById(req.id);
+    if (!user) throw new AppError("User not found", 404, "USER_NOT_FOUND");
+
+    if (email && email !== user.email) {
+        const emailOwner = await User.exists({ email, _id: { $ne: user._id } });
+        if (emailOwner) throw new AppError("An account with this email already exists", 409, "EMAIL_IN_USE");
     }
-}
-export const logout = async (req, res) => {
-    try {
-        return res.status(200).cookie("token", "", { maxAge: 0 }).json({
-            message: "Logged out successfully.",
-            success: true
-        })
-    } catch (error) {
-        console.log(error);
+
+    if (fullname !== undefined) user.fullname = fullname;
+    if (email !== undefined) user.email = email;
+    if (phoneNumber !== undefined) user.phoneNumber = phoneNumber;
+    if (bio !== undefined) user.profile.bio = bio;
+    if (skills !== undefined) user.profile.skills = skills;
+    if (req.file) {
+        user.profile.resume = await storeUploadedFile(req.file, "resumes");
+        user.profile.resumeOriginalName = req.file.originalname;
     }
-}
-export const updateProfile = async (req, res) => {
-    try {
-        const { fullname, email, phoneNumber, bio, skills } = req.body;
-        
-        const file = req.file;
-        // cloudinary ayega idhar
-        const fileUri = getDataUri(file);
-        const cloudResponse = await cloudinary.uploader.upload(fileUri.content);
 
+    await user.save();
+    res.json({ message: "Profile updated successfully", user: publicUser(user), success: true });
+});
 
+export const deleteResume = asyncHandler(async (req, res) => {
+    const user = await User.findById(req.id);
+    if (!user) throw new AppError("User not found", 404, "USER_NOT_FOUND");
+    user.profile.resume = "";
+    user.profile.resumeOriginalName = "";
+    await user.save();
+    res.json({ message: "Resume removed", user: publicUser(user), success: true });
+});
 
-        let skillsArray;
-        if(skills){
-            skillsArray = skills.split(",");
-        }
-        const userId = req.id; // middleware authentication
-        let user = await User.findById(userId);
-
-        if (!user) {
-            return res.status(400).json({
-                message: "User not found.",
-                success: false
-            })
-        }
-        // updating data
-        if(fullname) user.fullname = fullname
-        if(email) user.email = email
-        if(phoneNumber)  user.phoneNumber = phoneNumber
-        if(bio) user.profile.bio = bio
-        if(skills) user.profile.skills = skillsArray
-      
-        // resume comes later here...
-        if(cloudResponse){
-            user.profile.resume = cloudResponse.secure_url // save the cloudinary url
-            user.profile.resumeOriginalName = file.originalname // Save the original file name
-        }
-
-
-        await user.save();
-
-        user = {
-            _id: user._id,
-            fullname: user.fullname,
-            email: user.email,
-            phoneNumber: user.phoneNumber,
-            role: user.role,
-            profile: user.profile
-        }
-
-        return res.status(200).json({
-            message:"Profile updated successfully.",
-            user,
-            success:true
-        })
-    } catch (error) {
-        console.log(error);
-    }
-}
+export const updateProfilePhoto = asyncHandler(async (req, res) => {
+    if (!req.file) throw new AppError("Choose a profile image to upload", 400, "FILE_REQUIRED");
+    const user = await User.findById(req.id);
+    if (!user) throw new AppError("User not found", 404, "USER_NOT_FOUND");
+    user.profile.profilePhoto = await storeUploadedFile(req.file, "profile-images");
+    await user.save();
+    res.json({ message: "Profile photo updated", user: publicUser(user), success: true });
+});

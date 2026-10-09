@@ -5,7 +5,7 @@ import { Input } from '../ui/input'
 import { RadioGroup } from '../ui/radio-group'
 import { Button } from '../ui/button'
 import { Link, useNavigate } from 'react-router-dom'
-import axios from 'axios'
+import api, { getErrorMessage } from '@/lib/api'
 import { USER_API_END_POINT } from '@/utils/constant'
 import { toast } from 'sonner'
 import { useDispatch, useSelector } from 'react-redux'
@@ -46,17 +46,13 @@ const Signup = () => {
 
         try {
             dispatch(setLoading(true));
-            const res = await axios.post(`${USER_API_END_POINT}/register`, formData, {
-                headers: { 'Content-Type': "multipart/form-data" },
-                withCredentials: true,
-            });
+            const res = await api.post(`${USER_API_END_POINT}/register`, formData);
             if (res.data.success) {
                 navigate("/login");
                 toast.success(res.data.message);
             }
         } catch (error) {
-            console.log(error);
-            toast.error(error.response.data.message);
+            toast.error(getErrorMessage(error, "Unable to create your account"));
         } finally{
             dispatch(setLoading(false));
         }
@@ -66,7 +62,7 @@ const Signup = () => {
         if(user){
             navigate("/");
         }
-    },[])
+    },[navigate, user])
     return (
         <div>
             <Navbar />

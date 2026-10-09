@@ -1,21 +1,22 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import Navbar from '../shared/Navbar'
 import { Label } from '../ui/label'
 import { Input } from '../ui/input'
 import { Button } from '../ui/button'
 import { useSelector } from 'react-redux'
 import { Select, SelectContent, SelectGroup, SelectItem, SelectTrigger, SelectValue } from '../ui/select'
-import axios from 'axios'
+import api, { getErrorMessage } from '@/lib/api'
 import { JOB_API_END_POINT } from '@/utils/constant'
 import { toast } from 'sonner'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 import { Loader2, Info } from 'lucide-react'
 import { INDUSTRY_CATEGORIES } from '@/utils/searchUtils'
-
-// Flatten all roles for category dropdown
-const ALL_ROLES = INDUSTRY_CATEGORIES.flatMap(g => g.roles);
+import useGetAllCompanies from '@/hooks/useGetAllCompanies'
 
 const PostJob = () => {
+    useGetAllCompanies();
+    const { id } = useParams();
+    const isEditing = Boolean(id);
     const [input, setInput] = useState({
         title: "",
         description: "",
@@ -36,6 +37,29 @@ const PostJob = () => {
     const navigate = useNavigate();
     const { companies } = useSelector(store => store.company);
 
+    useEffect(() => {
+        if (!isEditing) return;
+        api.get(`${JOB_API_END_POINT}/get/${id}`).then((response) => {
+            const job = response.data.job;
+            setInput({
+                title: job.title || "",
+                description: job.description || "",
+                requirements: (job.requirements || []).join(", "),
+                salary: job.salary ?? "",
+                salaryMin: job.salaryMin ?? "",
+                salaryMax: job.salaryMax ?? "",
+                location: job.location || "",
+                jobType: job.jobType || "",
+                remoteType: job.remoteType || "On-site",
+                experience: job.experienceLevel ?? "",
+                position: job.position ?? 1,
+                companyId: job.company?._id || "",
+                category: job.category || "",
+                skills: (job.skills || []).join(", "),
+            });
+        }).catch((error) => toast.error(getErrorMessage(error, "Unable to load job")));
+    }, [id, isEditing]);
+
     const changeEventHandler = (e) => {
         setInput({ ...input, [e.target.name]: e.target.value });
     };
@@ -53,16 +77,15 @@ const PostJob = () => {
         e.preventDefault();
         try {
             setLoading(true);
-            const res = await axios.post(`${JOB_API_END_POINT}/post`, input, {
-                headers: { 'Content-Type': 'application/json' },
-                withCredentials: true
-            });
+            const res = isEditing
+                ? await api.put(`${JOB_API_END_POINT}/${id}`, input)
+                : await api.post(`${JOB_API_END_POINT}/post`, input);
             if (res.data.success) {
                 toast.success(res.data.message);
                 navigate("/admin/jobs");
             }
         } catch (error) {
-            toast.error(error.response?.data?.message || "Failed to post job");
+            toast.error(getErrorMessage(error, "Failed to post job"));
         } finally {
             setLoading(false);
         }
@@ -87,8 +110,8 @@ const PostJob = () => {
             <Navbar />
             <div className='max-w-3xl mx-auto px-4 py-8'>
                 <div className="mb-6">
-                    <h1 className="text-2xl font-bold text-gray-900">Post a New Job</h1>
-                    <p className="text-gray-500 text-sm mt-1">Fill in details to attract the right candidates</p>
+                    <h1 className="text-2xl font-bold text-gray-900">{isEditing ? "Edit Job" : "Post a New Job"}</h1>
+                    <p className="text-gray-500 text-sm mt-1">{isEditing ? "Keep the role details accurate and current" : "Fill in details to attract the right candidates"}</p>
                 </div>
 
                 <form onSubmit={submitHandler} className='bg-white p-8 rounded-2xl border border-gray-200 shadow-sm space-y-6'>
@@ -101,7 +124,7 @@ const PostJob = () => {
                             {/* Category dropdown */}
                             <div>
                                 <Label className="text-sm font-medium text-gray-700 mb-1 block">Industry / Category *</Label>
-                                <Select onValueChange={(val) => selectChangeHandler('category', val)}>
+                                <Select value={input.category || undefined} onValueChange={(val) => selectChangeHandler('category', val)}>
                                     <SelectTrigger className="focus:ring-[#6A38C2]">
                                         <SelectValue placeholder="Select category" />
                                     </SelectTrigger>
@@ -125,7 +148,7 @@ const PostJob = () => {
                             {/* Remote Type */}
                             <div>
                                 <Label className="text-sm font-medium text-gray-700 mb-1 block">Work Mode *</Label>
-                                <Select onValueChange={(val) => selectChangeHandler('remoteType', val)} defaultValue="On-site">
+                                <Select value={input.remoteType} onValueChange={(val) => selectChangeHandler('remoteType', val)}>
                                     <SelectTrigger>
                                         <SelectValue />
                                     </SelectTrigger>
@@ -140,7 +163,7 @@ const PostJob = () => {
                             {/* Job Type */}
                             <div>
                                 <Label className="text-sm font-medium text-gray-700 mb-1 block">Job Type *</Label>
-                                <Select onValueChange={(val) => selectChangeHandler('jobType', val)}>
+                                <Select value={input.jobType || undefined} onValueChange={(val) => selectChangeHandler('jobType', val)}>
                                     <SelectTrigger>
                                         <SelectValue placeholder="Select type" />
                                     </SelectTrigger>
@@ -215,7 +238,7 @@ const PostJob = () => {
                     <div>
                         <h2 className="font-semibold text-gray-800 mb-4 pb-2 border-b border-gray-100">Company</h2>
                         {companies.length > 0 ? (
-                            <Select onValueChange={(val) => selectChangeHandler('company', val)}>
+                            <Select value={companies.find((company) => company._id === input.companyId)?.name?.toLowerCase()} onValueChange={(val) => selectChangeHandler('company', val)}>
                                 <SelectTrigger className="w-full">
                                     <SelectValue placeholder="Select your company" />
                                 </SelectTrigger>
@@ -244,9 +267,9 @@ const PostJob = () => {
                         className="w-full bg-[#6A38C2] hover:bg-[#5b30a6] h-11 text-base font-semibold"
                     >
                         {loading ? (
-                            <><Loader2 className='mr-2 h-4 w-4 animate-spin' /> Posting Job...</>
+                            <><Loader2 className='mr-2 h-4 w-4 animate-spin' /> {isEditing ? "Saving Changes..." : "Posting Job..."}</>
                         ) : (
-                            "Post Job"
+                            isEditing ? "Save Changes" : "Post Job"
                         )}
                     </Button>
                 </form>

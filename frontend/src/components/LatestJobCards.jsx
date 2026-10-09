@@ -2,7 +2,7 @@ import React from 'react'
 import { Badge } from './ui/badge'
 import { Avatar, AvatarImage, AvatarFallback } from './ui/avatar'
 import { useNavigate } from 'react-router-dom'
-import { MapPin, Clock, Wifi } from 'lucide-react'
+import { MapPin, Clock } from 'lucide-react'
 import { formatSalary, timeAgo } from '@/utils/searchUtils'
 
 const LatestJobCards = ({ job }) => {

@@ -1,20 +1,26 @@
+import { lazy, Suspense } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom'
-import Navbar from './components/shared/Navbar'
-import Login from './components/auth/Login'
-import Signup from './components/auth/Signup'
-import Home from './components/Home'
-import Jobs from './components/Jobs'
-import Browse from './components/Browse'
-import Profile from './components/Profile'
-import JobDescription from './components/JobDescription'
-import Companies from './components/admin/Companies'
-import CompanyCreate from './components/admin/CompanyCreate'
-import CompanySetup from './components/admin/CompanySetup'
-import AdminJobs from "./components/admin/AdminJobs";
-import PostJob from './components/admin/PostJob'
-import Applicants from './components/admin/Applicants'
 import ProtectedRoute from './components/admin/ProtectedRoute'
+import RequireAuth from './components/RequireAuth'
+import useGetSavedJobs from './hooks/useGetSavedJobs'
+import useGetAppliedJobs from './hooks/useGetAppliedJobs'
 
+const Login = lazy(() => import('./components/auth/Login'))
+const Signup = lazy(() => import('./components/auth/Signup'))
+const Home = lazy(() => import('./components/Home'))
+const Jobs = lazy(() => import('./components/Jobs'))
+const Browse = lazy(() => import('./components/Browse'))
+const Profile = lazy(() => import('./components/Profile'))
+const JobDescription = lazy(() => import('./components/JobDescription'))
+const Companies = lazy(() => import('./components/admin/Companies'))
+const CompanyCreate = lazy(() => import('./components/admin/CompanyCreate'))
+const CompanySetup = lazy(() => import('./components/admin/CompanySetup'))
+const AdminJobs = lazy(() => import('./components/admin/AdminJobs'))
+const PostJob = lazy(() => import('./components/admin/PostJob'))
+const Applicants = lazy(() => import('./components/admin/Applicants'))
+const NotFound = lazy(() => import('./components/NotFound'))
+const CandidateDashboard = lazy(() => import('./components/CandidateDashboard'))
+const RecruiterDashboard = lazy(() => import('./components/admin/RecruiterDashboard'))
 
 const appRouter = createBrowserRouter([
   {
@@ -43,12 +49,20 @@ const appRouter = createBrowserRouter([
   },
   {
     path: "/profile",
-    element: <Profile />
+    element: <RequireAuth><Profile /></RequireAuth>
+  },
+  {
+    path: "/dashboard",
+    element: <RequireAuth><CandidateDashboard /></RequireAuth>
   },
   // admin ke liye yha se start hoga
   {
     path:"/admin/companies",
     element: <ProtectedRoute><Companies/></ProtectedRoute>
+  },
+  {
+    path:"/admin/dashboard",
+    element: <ProtectedRoute><RecruiterDashboard /></ProtectedRoute>
   },
   {
     path:"/admin/companies/create",
@@ -67,16 +81,28 @@ const appRouter = createBrowserRouter([
     element:<ProtectedRoute><PostJob/></ProtectedRoute> 
   },
   {
+    path:"/admin/jobs/:id/edit",
+    element:<ProtectedRoute><PostJob/></ProtectedRoute>
+  },
+  {
     path:"/admin/jobs/:id/applicants",
     element:<ProtectedRoute><Applicants/></ProtectedRoute> 
+  },
+  {
+    path: "*",
+    element: <NotFound />
   },
 
 ])
 function App() {
+  useGetSavedJobs();
+  useGetAppliedJobs();
 
   return (
     <div>
-      <RouterProvider router={appRouter} />
+      <Suspense fallback={<div className="min-h-screen bg-gray-50 animate-pulse" aria-label="Loading page" />}>
+        <RouterProvider router={appRouter} />
+      </Suspense>
     </div>
   )
 }

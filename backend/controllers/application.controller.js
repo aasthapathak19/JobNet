@@ -1,130 +1,50 @@
-import { Application } from "../models/application.model.js";
-import { Job } from "../models/job.model.js";
+import Application from "../models/application.model.js";
+import Job from "../models/job.model.js";
+import { AppError } from "../utils/appError.js";
+import { asyncHandler } from "../utils/asyncHandler.js";
 
-export const applyJob = async (req, res) => {
-    try {
-        const userId = req.id;
-        const jobId = req.params.id;
-        if (!jobId) {
-            return res.status(400).json({
-                message: "Job id is required.",
-                success: false
-            })
-        };
-        // check if the user has already applied for the job
-        const existingApplication = await Application.findOne({ job: jobId, applicant: userId });
+const normalizeStatus = (status) => ({ pending: "Applied", accepted: "Selected", Accepted: "Selected", rejected: "Rejected" }[status] || status);
 
-        if (existingApplication) {
-            return res.status(400).json({
-                message: "You have already applied for this jobs",
-                success: false
-            });
-        }
+export const applyJob = asyncHandler(async (req, res) => {
+    const job = await Job.findOne({ _id: req.params.id, $or: [{ status: "active" }, { status: { $exists: false } }] });
+    if (!job) throw new AppError("This job is not available for applications", 404, "JOB_NOT_AVAILABLE");
 
-        // check if the jobs exists
-        const job = await Job.findById(jobId);
-        if (!job) {
-            return res.status(404).json({
-                message: "Job not found",
-                success: false
-            })
-        }
-        // create a new application
-        const newApplication = await Application.create({
-            job:jobId,
-            applicant:userId,
-        });
+    const application = await Application.create({
+        job: job._id,
+        applicant: req.id,
+        status: "Applied",
+        resumeSnapshot: req.user.profile?.resume || "",
+        statusHistory: [{ status: "Applied", changedBy: req.id }],
+        lastUpdatedBy: req.id,
+    });
 
-        job.applications.push(newApplication._id);
-        await job.save();
-        return res.status(201).json({
-            message:"Job applied successfully.",
-            success:true
-        })
-    } catch (error) {
-        console.log(error);
-    }
-};
-export const getAppliedJobs = async (req,res) => {
-    try {
-        const userId = req.id;
-        const application = await Application.find({applicant:userId}).sort({createdAt:-1}).populate({
-            path:'job',
-            options:{sort:{createdAt:-1}},
-            populate:{
-                path:'company',
-                options:{sort:{createdAt:-1}},
-            }
-        });
-        if(!application){
-            return res.status(404).json({
-                message:"No Applications",
-                success:false
-            })
-        };
-        return res.status(200).json({
-            application,
-            success:true
-        })
-    } catch (error) {
-        console.log(error);
-    }
-}
-// admin dekhega kitna user ne apply kiya hai
-export const getApplicants = async (req,res) => {
-    try {
-        const jobId = req.params.id;
-        const job = await Job.findById(jobId).populate({
-            path:'applications',
-            options:{sort:{createdAt:-1}},
-            populate:{
-                path:'applicant'
-            }
-        });
-        if(!job){
-            return res.status(404).json({
-                message:'Job not found.',
-                success:false
-            })
-        };
-        return res.status(200).json({
-            job, 
-            succees:true
-        });
-    } catch (error) {
-        console.log(error);
-    }
-}
-export const updateStatus = async (req,res) => {
-    try {
-        const {status} = req.body;
-        const applicationId = req.params.id;
-        if(!status){
-            return res.status(400).json({
-                message:'status is required',
-                success:false
-            })
-        };
+    await Job.updateOne({ _id: job._id }, { $addToSet: { applications: application._id } });
+    res.status(201).json({ message: "Application submitted successfully", application, success: true });
+});
 
-        // find the application by applicantion id
-        const application = await Application.findOne({_id:applicationId});
-        if(!application){
-            return res.status(404).json({
-                message:"Application not found.",
-                success:false
-            })
-        };
+export const getAppliedJobs = asyncHandler(async (req, res) => {
+    const application = await Application.find({ applicant: req.id })
+        .sort({ createdAt: -1 })
+        .populate({ path: "job", populate: { path: "company" } })
+        .lean();
+    res.json({ application, success: true });
+});
 
-        // update the status
-        application.status = status.toLowerCase();
-        await application.save();
+export const getApplicants = asyncHandler(async (req, res) => {
+    const applications = await Application.find({ job: req.job._id })
+        .sort({ createdAt: -1 })
+        .populate({ path: "applicant", select: "fullname email phoneNumber profile" })
+        .lean();
+    const job = req.job.toObject();
+    job.applications = applications;
+    res.json({ job, success: true });
+});
 
-        return res.status(200).json({
-            message:"Status updated successfully.",
-            success:true
-        });
-
-    } catch (error) {
-        console.log(error);
-    }
-}
+export const updateStatus = asyncHandler(async (req, res) => {
+    const status = normalizeStatus(req.body.status);
+    req.application.status = status;
+    req.application.lastUpdatedBy = req.id;
+    req.application.statusHistory.push({ status, changedBy: req.id, note: req.body.note });
+    await req.application.save();
+    res.json({ message: "Application status updated", application: req.application, success: true });
+});

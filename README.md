@@ -1,290 +1,148 @@
-# JobNet — Production-Grade Job Portal
+# JobNet
 
-A serious full-stack job platform built as a showcase of real software engineering skills — not a college demo.
+JobNet is a full-stack recruitment platform for candidates and recruiters. It keeps the original React, Express, and MongoDB architecture while adding server-side search, persistent saved jobs, role and ownership authorization, secure uploads, operational health checks, automated tests, and production containers.
 
-## Overview
+## Capabilities
 
-JobNet is a modern, production-oriented job portal for the Indian tech market. It supports multi-dimensional job search, relevance-based ranking, skill match scoring, and a comprehensive role taxonomy covering 50+ job categories across Software Engineering, Data & AI, Cloud/DevOps, Cybersecurity, Product, and more.
+### Candidates
 
----
+- Register and authenticate with an HTTP-only cookie.
+- Maintain a profile, photo, skills, and resume.
+- Search and filter active jobs with server-side pagination.
+- Save jobs persistently across sessions and devices.
+- Apply once per job and track the application lifecycle.
+- View profile completion, recent activity, and explainable job matches.
 
-## Features
+### Recruiters
 
-### Search & Discovery
-- **Smart multi-filter search**: Simultaneously filter by keyword, location, industry, salary range, experience level, and work mode
-- **Semantic keyword expansion**: Searching "cybersecurity" automatically finds Security Analyst, SOC Analyst, AppSec Engineer, Cloud Security Engineer, etc.
-- **Relevance ranking**: Results ranked by match score — exact title match > category match > skill match > description
-- **URL-driven state**: All filters serialize to URL params (`/jobs?q=devops&location=Bengaluru&salary=20-30`) — shareable and refresh-persistent
-- **Search suggestions**: Real-time autocomplete from the role taxonomy as you type
-- **Location alias normalization**: Bangalore = Bengaluru, Gurgaon = Gurugram — no missed results
-- **Quick category browsing**: Carousel and trending role chips on homepage
+- Create and manage only their own companies.
+- Create, edit, publish, close, and archive owned jobs.
+- View applicants only for owned jobs.
+- Move applications through a recorded status history.
+- View owned-job and applicant dashboard metrics.
 
-### Job Cards
-- Company logo with fallback initials
-- Location + Remote/Hybrid/On-site badge
-- Salary range display (₹12–20 LPA)
-- Skill tags
-- **Skill match % bar** for logged-in students
-- Save/unsave with visual state
-- Featured and Applied badges
-- Time posted (relative)
+## Technology
 
-### Job Details
-- Full job description + requirements checklist
-- Skill match breakdown (✓ You have / • You may need)
-- Company information sidebar
-- Stats: salary, experience, job type, openings count
-- Share button (copies URL to clipboard)
-- Save job toggle
-- Apply CTA with gradient card
+- Frontend: React 18, Vite, Tailwind CSS, Redux Toolkit, React Router, Axios, Radix UI, Lucide.
+- Backend: Node.js 22, Express 4, MongoDB, Mongoose, Zod, JWT, Multer, Cloudinary, Pino.
+- Quality: Vitest, Testing Library, Supertest, ESLint, GitHub Actions.
+- Deployment: multi-stage Docker images, Nginx, Docker Compose.
 
-### Admin (Recruiter)
-- Post jobs with: category, skills, salary range, work mode, experience level
-- Manage companies, view applicants
-- Protected routes
+## Quick Start With Docker
 
-### UX Improvements
-- Loading skeletons (not blank screens)
-- Meaningful empty states with recovery actions
-- Mobile-responsive navbar with hamburger menu
-- Sticky navbar
-- Active route highlighting
-- Toast notifications for all key actions
-
----
-
-## Tech Stack
-
-### Frontend
-| Technology | Purpose |
-|---|---|
-| React 18 | UI framework |
-| Vite | Build tool |
-| TailwindCSS | Styling |
-| ShadCN/Radix UI | Component library |
-| Redux Toolkit | State management |
-| Redux Persist | State persistence |
-| React Router DOM v6 | Routing + URL params |
-| Framer Motion | Animations |
-| Axios | API calls |
-| Sonner | Toast notifications |
-| Lucide React | Icons |
-
-### Backend
-| Technology | Purpose |
-|---|---|
-| Node.js + Express | REST API |
-| MongoDB + Mongoose | Database |
-| JWT | Authentication |
-| bcryptjs | Password hashing |
-| Multer | File uploads |
-| Cloudinary | Image storage |
-| dotenv | Environment config |
-
-### Infrastructure
-| Technology | Purpose |
-|---|---|
-| Docker | Containerization |
-| Docker Compose | Multi-service orchestration |
-| MongoDB Docker image | Database container |
-
----
-
-## Architecture
-
-```
-JobNet/
-├── backend/
-│   ├── controllers/
-│   │   ├── job.controller.js     # Multi-filter search, CRUD
-│   │   ├── user.controller.js    # Auth, profile
-│   │   ├── company.controller.js # Company management
-│   │   └── application.controller.js
-│   ├── models/
-│   │   ├── job.model.js          # Extended: category, skills, salaryMin/Max, remoteType
-│   │   ├── user.model.js         # Auth, profile, skills
-│   │   ├── company.model.js      # Company info + logo
-│   │   └── application.model.js
-│   ├── routes/          # Express routers
-│   ├── middlewares/     # Auth, file upload
-│   ├── utils/           # DB connect, Cloudinary, datauri
-│   └── seed.js          # Comprehensive seed: 10 companies, 33 jobs
-│
-└── frontend/
-    ├── src/
-    │   ├── components/
-    │   │   ├── FilterCard.jsx       # Multi-filter sidebar (5 dimensions)
-    │   │   ├── HeroSection.jsx      # Search with autocomplete
-    │   │   ├── Job.jsx              # Rich job card with skill match
-    │   │   ├── JobDescription.jsx   # Full job detail page
-    │   │   ├── Jobs.jsx             # Main jobs page, URL sync
-    │   │   ├── Browse.jsx           # Browse page
-    │   │   ├── JobSkeleton.jsx      # Loading placeholder
-    │   │   ├── CategoryCarousel.jsx # 14 category quick-filters
-    │   │   ├── LatestJobs.jsx       # Homepage job section
-    │   │   └── admin/               # Recruiter admin pages
-    │   ├── redux/
-    │   │   ├── jobSlice.js          # Structured filters state
-    │   │   ├── authSlice.js         # User auth state
-    │   │   └── store.js             # Redux store with persist
-    │   ├── hooks/
-    │   │   └── useGetAllJobs.jsx    # Reactive to all filter dimensions
-    │   └── utils/
-    │       ├── searchUtils.js       # Search pipeline, ranking, utilities
-    │       └── constant.js          # API endpoints
-```
-
----
-
-## Search/Filter Architecture
-
-### Pipeline (client-side, applied on top of server results)
-
-```
-User Input
-  → Normalize Query (lowercase, trim)
-  → Expand Keywords (e.g. "cybersecurity" → 10 related terms)
-  → Filter by Text Search (title, category, skills, requirements, description)
-  → Filter by Location (with alias normalization)
-  → Filter by Category/Industry (with semantic expansion)
-  → Filter by Salary Range (numeric overlap logic)
-  → Filter by Experience Level
-  → Filter by Work Mode (Remote/Hybrid/On-site)
-  → Score by Relevance (if query present)
-  → Sort (by relevance + recency | salary high | salary low)
-  → Render
-```
-
-### Relevance Scoring
-| Signal | Score |
-|---|---|
-| Exact title match | +100 |
-| Title starts with query | +80 |
-| Title contains query | +60 |
-| Category exact match | +50 |
-| Category contains query | +35 |
-| Expanded keyword in title | +40 |
-| Expanded keyword in category | +30 |
-| Exact skill match | +45 |
-| Skill partial match | +25 |
-| Expanded keyword in skills | +20 |
-| Description match | +5–10 |
-
-### Salary Filtering
-Salary stored as numeric LPA (e.g. `salaryMin: 12, salaryMax: 20`). Range overlap logic:
-- A job paying ₹10–15 LPA matches a filter for ₹12+ because the ranges overlap
-- Never compares display strings
-
-### Location Normalization
-```js
-"Gurgaon" → "gurugram"
-"Bangalore" → "bengaluru"
-"Delhi NCR" → "delhi"
-```
-
----
-
-## Unique Features
-
-1. **Semantic category expansion** — "Cybersecurity" finds Security Analyst, SOC Analyst, AppSec Engineer, Cloud Security, Information Security
-2. **Skill match scoring** — Shows % match between user profile skills and job requirements, with ✓ matched and • missing breakdown
-3. **URL-driven filter state** — `/jobs?q=devops&location=Bengaluru&salary=20-30` is fully shareable and refresh-persistent
-4. **Structured salary data** — Internal `salaryMin`/`salaryMax` with overlap-based range matching
-5. **Multi-dimensional simultaneous filtering** — All 5 filter dimensions are independent and combineable
-6. **Trending roles section** — Curated high-growth roles on homepage
-
----
-
-## Setup
-
-### Prerequisites
-- Docker Desktop
-- Node.js 18+ (for local dev without Docker)
-
-### Quick Start (Docker)
+Requirements: Docker Desktop and Docker Compose.
 
 ```bash
-git clone <repo>
+git clone https://github.com/aasthapathak19/JobNet.git
 cd JobNet
-docker compose up --build -d
+docker compose up --build
 ```
 
-Then seed the database:
+Open:
+
+- Frontend: `http://localhost:5173`
+- API: `http://localhost:8000`
+- Liveness: `http://localhost:8000/health`
+- Readiness: `http://localhost:8000/ready`
+
+The development stack uses local upload storage and a named MongoDB volume. Register accounts through the UI; no default credentials are embedded in the application.
+
+## Local Development
+
+Requirements: Node.js 22 and MongoDB 7.
+
 ```bash
 cd backend
-npm install
-MONGO_URI=mongodb://localhost:27017/jobnet node seed.js
-```
-
-Access:
-- **Frontend**: http://localhost:5173
-- **Backend API**: http://localhost:8000
-- **MongoDB**: mongodb://localhost:27017/jobnet
-
-### Test Credentials
-| Role | Email | Password |
-|---|---|---|
-| Student | student@test.com | password123 |
-| Recruiter | recruiter@test.com | password123 |
-
----
-
-## Environment Variables
-
-Create `backend/.env`:
-```env
-PORT=8000
-MONGO_URI=mongodb://mongo:27017/jobnet
-SECRET_KEY=your_jwt_secret_here
-CLOUD_NAME=your_cloudinary_cloud_name
-API_KEY=your_cloudinary_api_key
-API_SECRET=your_cloudinary_api_secret
-```
-
-> **Note**: Cloudinary is only required for profile photo and resume uploads. The core job search functionality works without it.
-
----
-
-## Running Locally (without Docker)
-
-**Backend:**
-```bash
-cd backend
-npm install
+copy .env.example .env
+npm ci
 npm run dev
 ```
 
-**Frontend:**
+In a second terminal:
+
 ```bash
 cd frontend
-npm install
+copy .env.example .env
+npm ci
 npm run dev
 ```
 
----
+Vite proxies `/api` and `/uploads` to the backend during local development.
 
-## Future Improvements
+## Configuration
 
-- [ ] Pagination / infinite scroll for large job sets
-- [ ] Email notifications for job applications
-- [ ] Admin dashboard analytics
-- [ ] Job alerts (saved searches with notifications)
-- [ ] Candidate resume parsing
-- [ ] Company reviews/ratings
-- [ ] Interview scheduling integration
-- [ ] Advanced AI-powered job matching using embeddings
-- [ ] Mobile app (React Native)
+Backend configuration is validated at startup. See [`backend/.env.example`](backend/.env.example) and [`backend/.env.production.example`](backend/.env.production.example).
 
----
+Important values:
 
-## Engineering Notes
+| Variable | Purpose |
+|---|---|
+| `MONGO_URI` | MongoDB connection string |
+| `JWT_SECRET` | Strong JWT signing secret |
+| `CLIENT_URL` | Comma-separated browser origin allowlist |
+| `SERVER_URL` | Public API origin used for local upload URLs |
+| `COOKIE_SAME_SITE` | Cookie SameSite policy |
+| `STORAGE_PROVIDER` | `local` for development or `cloudinary` for production |
+| `CLOUDINARY_CLOUD_NAME` | Cloudinary cloud name |
+| `CLOUDINARY_API_KEY` | Cloudinary API key |
+| `CLOUDINARY_API_SECRET` | Cloudinary API secret |
 
-Built to demonstrate:
-- Thoughtful data modeling (extended job schema with category, skills, salary ranges, remoteType)
-- Reusable utility functions (searchUtils.js)
-- Real search/filter logic (semantic expansion, relevance scoring, overlap matching)
-- Proper state management (structured Redux filters, not a single string)
-- URL-driven filter state (shareable, refresh-persistent)
-- Production patterns (loading states, error handling, empty states with recovery)
-- Mobile responsiveness
-- Clean folder structure and separation of concerns
+Never commit a real `.env` file. Production configuration rejects weak JWT secrets, insecure cookie settings, and missing Cloudinary credentials when Cloudinary storage is selected.
+
+## Commands
+
+Backend:
+
+```bash
+npm run check
+npm test
+npm start
+```
+
+Frontend:
+
+```bash
+npm run lint
+npm test
+npm run build
+```
+
+## Production-Like Deployment
+
+Create an untracked `backend/.env.production`, then run:
+
+```bash
+docker compose -f docker-compose.prod.yml up --build -d
+```
+
+The frontend image compiles the React application and serves static assets through Nginx. The backend image installs production dependencies and runs as a non-root user with `node index.js`. Secrets are injected at runtime and are not copied into either image.
+
+## Documentation
+
+- [Project audit](docs/PROJECT_AUDIT.md)
+- [API reference](docs/API.md)
+- [Architecture](docs/ARCHITECTURE.md)
+- [Security audit](docs/SECURITY_AUDIT.md)
+
+## API Conventions
+
+- Base path: `/api/v1`
+- Authentication: credentialed HTTP-only cookie
+- Errors: `{ success, message, code, requestId }`
+- List endpoints: bounded pagination, maximum page size 50
+- Authorization: backend role and resource ownership checks
+
+## Repository Layout
+
+```text
+backend/                 Express API, models, validation, tests
+frontend/                React application and component tests
+docs/                    Audit, API, architecture, and security docs
+.github/workflows/ci.yml Continuous integration pipeline
+docker-compose.yml       Local development stack
+docker-compose.prod.yml  Production-like stack
+```
+
+## Current Scope
+
+Job matching and recommendations use deterministic, explainable scoring based on skills and job data. This deliberately avoids opaque ML behavior. Email notifications, interview scheduling, resume parsing, and private document delivery are suitable next-stage integrations, not hidden or partially implemented features.

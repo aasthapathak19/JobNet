@@ -7,7 +7,6 @@ import {
 } from '@/utils/searchUtils'
 import { X, ChevronDown, ChevronUp, SlidersHorizontal } from 'lucide-react'
 import { Badge } from './ui/badge'
-import { Button } from './ui/button'
 
 const FilterSection = ({ title, children, defaultOpen = true }) => {
     const [open, setOpen] = useState(defaultOpen);
@@ -25,7 +24,7 @@ const FilterSection = ({ title, children, defaultOpen = true }) => {
     );
 };
 
-const FilterOption = ({ label, value, activeValue, onClick, color }) => {
+const FilterOption = ({ label, value, activeValue, onClick }) => {
     const isActive = activeValue === value;
     return (
         <button

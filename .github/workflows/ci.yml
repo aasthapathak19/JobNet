@@ -1,0 +1,59 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22.14.0
+          cache: npm
+          cache-dependency-path: |
+            backend/package-lock.json
+            frontend/package-lock.json
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Check backend syntax
+        working-directory: backend
+        run: npm run check
+
+      - name: Test backend
+        working-directory: backend
+        env:
+          NODE_ENV: test
+          LOG_LEVEL: silent
+          MONGO_URI: mongodb://127.0.0.1:27017/jobnet-test
+          JWT_SECRET: test-only-secret-that-is-at-least-32-characters
+        run: npm test
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Lint frontend
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      - name: Build backend image
+        run: docker build -t jobnet-backend:ci ./backend
+
+      - name: Build frontend image
+        run: docker build -t jobnet-frontend:ci ./frontend

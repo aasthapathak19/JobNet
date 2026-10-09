@@ -1,18 +1,17 @@
 import React, { useEffect, useState } from 'react'
-import { Badge } from './ui/badge'
 import { Button } from './ui/button'
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api, { getErrorMessage } from '@/lib/api';
 import { APPLICATION_API_END_POINT, JOB_API_END_POINT } from '@/utils/constant';
 import { setSingleJob } from '@/redux/jobSlice';
 import { useDispatch, useSelector } from 'react-redux';
 import { toast } from 'sonner';
 import Navbar from './shared/Navbar';
-import { toggleSaveJob } from '@/redux/jobSlice';
+import useSavedJobActions from '@/hooks/useSavedJobActions';
 import {
-    MapPin, Building2, Briefcase, Clock, DollarSign,
+    MapPin, Clock,
     BookmarkCheck, Bookmark, Share2, ArrowLeft, Users,
-    CheckCircle2, XCircle, Wifi, WifiOff, Calendar, Star
+    CheckCircle2, Star
 } from 'lucide-react';
 import { formatSalary, timeAgo, getSkillMatch } from '@/utils/searchUtils';
 
@@ -31,18 +30,18 @@ const RemoteTag = ({ remoteType }) => {
 };
 
 const JobDescription = () => {
-    const { singleJob } = useSelector(store => store.job);
+    const { singleJob, allAppliedJobs } = useSelector(store => store.job);
     const { user } = useSelector(store => store.auth);
-    const { savedJobs } = useSelector(store => store.job);
-    const isInitiallyApplied = singleJob?.applications?.some(application => application.applicant === user?._id) || false;
+    const isInitiallyApplied = allAppliedJobs?.some((application) => application?.job?._id === singleJob?._id) || false;
     const [isApplied, setIsApplied] = useState(isInitiallyApplied);
 
     const params = useParams();
     const jobId = params.id;
     const dispatch = useDispatch();
     const navigate = useNavigate();
+    const { isSaved: getIsSaved, toggleSaved } = useSavedJobActions();
 
-    const isSaved = savedJobs?.includes(jobId);
+    const isSaved = getIsSaved(jobId);
     const userSkills = user?.profile?.skills || [];
     const skillMatch = singleJob?.skills?.length > 0 ? getSkillMatch(userSkills, singleJob.skills) : null;
 
@@ -53,33 +52,30 @@ const JobDescription = () => {
             return;
         }
         try {
-            const res = await axios.get(`${APPLICATION_API_END_POINT}/apply/${jobId}`, { withCredentials: true });
+            const res = await api.post(`${APPLICATION_API_END_POINT}/apply/${jobId}`);
             if (res.data.success) {
                 setIsApplied(true);
-                const updatedSingleJob = { ...singleJob, applications: [...singleJob.applications, { applicant: user?._id }] };
-                dispatch(setSingleJob(updatedSingleJob));
                 toast.success(res.data.message);
             }
         } catch (error) {
-            console.log(error);
-            toast.error(error.response?.data?.message || "Failed to apply");
+            toast.error(getErrorMessage(error, "Failed to apply"));
         }
     }
 
     useEffect(() => {
         const fetchSingleJob = async () => {
             try {
-                const res = await axios.get(`${JOB_API_END_POINT}/get/${jobId}`, { withCredentials: true });
+                const res = await api.get(`${JOB_API_END_POINT}/get/${jobId}`);
                 if (res.data.success) {
                     dispatch(setSingleJob(res.data.job));
-                    setIsApplied(res.data.job.applications.some(application => application.applicant === user?._id));
+                    setIsApplied(allAppliedJobs?.some((application) => application?.job?._id === jobId) || false);
                 }
             } catch (error) {
                 console.log(error);
             }
         }
         fetchSingleJob();
-    }, [jobId, dispatch, user?._id]);
+    }, [jobId, dispatch, allAppliedJobs]);
 
     if (!singleJob) {
         return (
@@ -151,7 +147,7 @@ const JobDescription = () => {
                                 {/* Action buttons */}
                                 <div className="flex items-center gap-2 flex-shrink-0">
                                     <button
-                                        onClick={() => dispatch(toggleSaveJob(jobId))}
+                                        onClick={() => toggleSaved(singleJob)}
                                         className={`p-2 rounded-lg border transition-all ${isSaved ? 'border-[#6A38C2] text-[#6A38C2] bg-purple-50' : 'border-gray-200 text-gray-500 hover:border-[#6A38C2] hover:text-[#6A38C2]'}`}
                                         title={isSaved ? "Saved" : "Save job"}
                                     >
@@ -331,7 +327,7 @@ const JobDescription = () => {
                         <div className="bg-gradient-to-br from-[#6A38C2] to-[#9b59b6] rounded-2xl p-5 text-white text-center">
                             <h3 className="font-bold mb-1">Interested in this role?</h3>
                             <p className="text-purple-200 text-xs mb-3">
-                                {singleJob?.applications?.length || 0} people have already applied
+                                {singleJob?.applicationCount || 0} people have already applied
                             </p>
                             <Button
                                 onClick={isApplied ? null : applyJobHandler}

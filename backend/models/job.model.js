@@ -3,8 +3,11 @@ import mongoose from "mongoose";
 const jobSchema = new mongoose.Schema({
     title: {
         type: String,
-        required: true
+        required: true,
+        trim: true,
+        maxlength: 160,
     },
+    slug: { type: String, trim: true, index: true },
     description: {
         type: String,
         required: true
@@ -84,10 +87,21 @@ const jobSchema = new mongoose.Schema({
     applicationDeadline: {
         type: Date,
         default: null
+    },
+    status: {
+        type: String,
+        enum: ["draft", "active", "closed", "expired", "archived"],
+        default: "active",
     }
 }, { timestamps: true });
 
-// Text index for full-text search
-jobSchema.index({ title: "text", description: "text", category: "text", skills: "text" });
+jobSchema.index(
+    { title: "text", category: "text", skills: "text", requirements: "text", description: "text" },
+    { weights: { title: 10, category: 7, skills: 6, requirements: 3, description: 1 }, name: "job_search" },
+);
+jobSchema.index({ status: 1, createdAt: -1 });
+jobSchema.index({ created_by: 1, createdAt: -1 });
+jobSchema.index({ company: 1, createdAt: -1 });
 
 export const Job = mongoose.model("Job", jobSchema);
+export default Job;

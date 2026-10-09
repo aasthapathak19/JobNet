@@ -1,14 +1,16 @@
 import express from "express";
-import isAuthenticated from "../middlewares/isAuthenticated.js";
 import { applyJob, getApplicants, getAppliedJobs, updateStatus } from "../controllers/application.controller.js";
- 
+import { requireAuth, requireRecruiter, requireStudent } from "../middlewares/isAuthenticated.js";
+import { requireApplicationJobOwnership, requireJobOwnership } from "../middlewares/ownership.js";
+import { validate } from "../middlewares/validate.js";
+import { idParamSchema, updateApplicationStatusSchema } from "../validators/schemas.js";
+
 const router = express.Router();
 
-router.route("/apply/:id").get(isAuthenticated, applyJob);
-router.route("/get").get(isAuthenticated, getAppliedJobs);
-router.route("/:id/applicants").get(isAuthenticated, getApplicants);
-router.route("/status/:id/update").post(isAuthenticated, updateStatus);
- 
+router.post("/apply/:id", requireAuth, requireStudent, validate(idParamSchema), applyJob);
+router.get("/get", requireAuth, requireStudent, getAppliedJobs);
+router.get("/:id/applicants", requireAuth, requireRecruiter, validate(idParamSchema), requireJobOwnership(), getApplicants);
+router.patch("/status/:id", requireAuth, requireRecruiter, validate(updateApplicationStatusSchema), requireApplicationJobOwnership(), updateStatus);
+router.post("/status/:id/update", requireAuth, requireRecruiter, validate(updateApplicationStatusSchema), requireApplicationJobOwnership(), updateStatus);
 
 export default router;
-

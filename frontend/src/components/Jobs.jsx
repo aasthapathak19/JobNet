@@ -1,14 +1,14 @@
-import React, { useEffect, useMemo, useCallback } from 'react'
+import React, { useEffect, useCallback } from 'react'
 import { useDispatch, useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Search, X, ArrowUpDown, Briefcase, MapPin, SlidersHorizontal } from 'lucide-react';
+import { X } from 'lucide-react';
 import Navbar from './shared/Navbar'
 import FilterCard from './FilterCard'
 import Job from './Job';
 import JobSkeleton from './JobSkeleton';
 import { setFilters, clearFilters } from '@/redux/jobSlice';
-import { filterAndRankJobs, filtersToURLParams, urlParamsToFilters, hasActiveFilters, SALARY_RANGES } from '@/utils/searchUtils';
+import { filtersToURLParams, urlParamsToFilters, hasActiveFilters, SALARY_RANGES } from '@/utils/searchUtils';
 import useGetAllJobs from '@/hooks/useGetAllJobs';
 import { Button } from './ui/button';
 
@@ -24,8 +24,8 @@ const SortBar = ({ count, filters, onSortChange }) => (
             className="text-sm border border-gray-200 rounded-lg px-3 py-1.5 outline-none focus:border-[#6A38C2] bg-white cursor-pointer"
         >
             <option value="recent">Sort: Newest</option>
-            <option value="salary_high">Salary: High to Low</option>
-            <option value="salary_low">Salary: Low to High</option>
+            <option value="salary-high">Salary: High to Low</option>
+            <option value="salary-low">Salary: Low to High</option>
         </select>
     </div>
 );
@@ -81,7 +81,7 @@ const EmptyState = ({ filters, onClear }) => {
 const Jobs = () => {
     const dispatch = useDispatch();
     const [searchParams, setSearchParams] = useSearchParams();
-    const { allJobs, filters = {}, isLoading } = useSelector(store => store.job);
+    const { allJobs, filters = {}, isLoading, pagination } = useSelector(store => store.job);
 
     // Fetch jobs reactively based on filters
     useGetAllJobs();
@@ -93,7 +93,7 @@ const Jobs = () => {
         if (hasAny) {
             dispatch(setFilters(urlFilters));
         }
-    }, []); // only on mount
+    }, [dispatch, searchParams]);
 
     // Sync Redux filters → URL params (debounced-style: whenever filters change)
     useEffect(() => {
@@ -103,12 +103,7 @@ const Jobs = () => {
         if (paramStr !== currentStr) {
             setSearchParams(params, { replace: true });
         }
-    }, [filters]);
-
-    // Client-side filter + rank pipeline (applied on top of backend results)
-    const filteredJobs = useMemo(() => {
-        return filterAndRankJobs(allJobs, filters);
-    }, [allJobs, filters]);
+    }, [filters, searchParams, setSearchParams]);
 
     const handleSortChange = useCallback((sort) => {
         dispatch(setFilters({ sort }));
@@ -157,18 +152,18 @@ const Jobs = () => {
                                     {[...Array(6)].map((_, i) => <JobSkeleton key={i} />)}
                                 </div>
                             </>
-                        ) : filteredJobs.length === 0 ? (
+                        ) : allJobs.length === 0 ? (
                             <EmptyState filters={filters} onClear={handleClear} />
                         ) : (
                             <>
                                 <SortBar
-                                    count={filteredJobs.length}
+                                    count={pagination?.total ?? allJobs.length}
                                     filters={filters}
                                     onSortChange={handleSortChange}
                                 />
                                 <div className='grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4'>
                                     <AnimatePresence>
-                                        {filteredJobs.map((job, idx) => (
+                                        {allJobs.map((job, idx) => (
                                             <motion.div
                                                 key={job?._id}
                                                 initial={{ opacity: 0, y: 20 }}
@@ -181,6 +176,13 @@ const Jobs = () => {
                                         ))}
                                     </AnimatePresence>
                                 </div>
+                                {pagination?.totalPages > 1 && (
+                                    <nav className="flex items-center justify-center gap-3 mt-8" aria-label="Job result pages">
+                                        <Button variant="outline" disabled={!pagination.hasPreviousPage} onClick={() => dispatch(setFilters({ page: pagination.page - 1 }))}>Previous</Button>
+                                        <span className="text-sm text-gray-600">Page {pagination.page} of {pagination.totalPages}</span>
+                                        <Button variant="outline" disabled={!pagination.hasNextPage} onClick={() => dispatch(setFilters({ page: pagination.page + 1 }))}>Next</Button>
+                                    </nav>
+                                )}
                             </>
                         )}
                     </div>

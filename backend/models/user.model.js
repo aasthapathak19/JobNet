@@ -3,20 +3,27 @@ import mongoose from "mongoose";
 const userSchema = new mongoose.Schema({
     fullname: {
         type: String,
-        required: true
+        required: true,
+        trim: true,
+        maxlength: 100,
     },
     email: {
         type: String,
         required: true,
-        unique: true
+        unique: true,
+        lowercase: true,
+        trim: true,
+        maxlength: 254,
     },
     phoneNumber: {
-        type: Number,
-        required: true
+        type: String,
+        required: true,
+        trim: true,
     },
     password:{
         type:String,
         required:true,
+        select:false,
     },
     role:{
         type:String,
@@ -24,10 +31,10 @@ const userSchema = new mongoose.Schema({
         required:true
     },
     profile:{
-        bio:{type:String},
-        skills:[{type:String}],
-        resume:{type:String}, // URL to resume file
-        resumeOriginalName:{type:String},
+        bio:{type:String, default:"", maxlength:1000},
+        skills:{type:[String], default:[]},
+        resume:{type:String, default:""},
+        resumeOriginalName:{type:String, default:""},
         company:{type:mongoose.Schema.Types.ObjectId, ref:'Company'}, 
         profilePhoto:{
             type:String,
@@ -35,4 +42,13 @@ const userSchema = new mongoose.Schema({
         }
     },
 },{timestamps:true});
+
+userSchema.set("toJSON", {
+    transform: (_document, returned) => {
+        delete returned.password;
+        return returned;
+    },
+});
+
 export const User = mongoose.model('User', userSchema);
+export default User;
