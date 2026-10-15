@@ -60,6 +60,27 @@ export const logout = asyncHandler(async (_req, res) => {
     });
 });
 
+export const resetPassword = asyncHandler(async (req, res) => {
+    const { email, phoneNumber, newPassword } = req.body;
+    const user = await User.findOne({ email }).select("+password");
+    if (!user) {
+        throw new AppError("No account found with this email address", 404, "USER_NOT_FOUND");
+    }
+
+    const normalizePhone = (p) => (p || "").replace(/[^0-9]/g, "");
+    if (normalizePhone(user.phoneNumber) !== normalizePhone(phoneNumber)) {
+        throw new AppError("Phone number does not match registered account details", 400, "PHONE_MISMATCH");
+    }
+
+    user.password = await bcrypt.hash(newPassword, 12);
+    await user.save();
+
+    res.json({
+        success: true,
+        message: "Password reset successfully. You can now login with your new password.",
+    });
+});
+
 export const getCurrentUser = asyncHandler(async (req, res) => {
     const user = await User.findById(req.id);
     if (!user) throw new AppError("User not found", 404, "USER_NOT_FOUND");

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import { Button } from './ui/button'
 import { Search } from 'lucide-react'
 import { useDispatch } from 'react-redux';
@@ -17,27 +17,22 @@ const POPULAR_SEARCHES = [
 
 const HeroSection = () => {
     const [query, setQuery] = useState("");
-    const [suggestions, setSuggestions] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const dispatch = useDispatch();
     const navigate = useNavigate();
     const inputRef = useRef(null);
     const suggestionsRef = useRef(null);
 
-    // Generate suggestions as user types
-    useEffect(() => {
-        if (query.trim().length < 2) {
-            setSuggestions([]);
-            setShowSuggestions(false);
-            return;
-        }
-        const q = query.toLowerCase();
-        const matched = ALL_ROLES.filter(role =>
+    const suggestions = useMemo(() => {
+        const q = query.trim().toLowerCase();
+        if (q.length < 2) return [];
+
+        return ALL_ROLES.filter(role =>
             role.toLowerCase().includes(q)
         ).slice(0, 6);
-        setSuggestions(matched);
-        setShowSuggestions(matched.length > 0);
     }, [query]);
+
+    const isSuggestionOpen = showSuggestions && suggestions.length > 0;
 
     // Close suggestions on outside click
     useEffect(() => {
@@ -101,7 +96,11 @@ const HeroSection = () => {
                             type="text"
                             placeholder='Search by role, skill, or company...'
                             value={query}
-                            onChange={(e) => setQuery(e.target.value)}
+                            onChange={(e) => {
+                                const nextQuery = e.target.value;
+                                setQuery(nextQuery);
+                                setShowSuggestions(nextQuery.trim().length >= 2);
+                            }}
                             onKeyDown={handleKeyDown}
                             onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                             className='flex-1 py-4 px-3 outline-none border-none bg-transparent text-gray-800 placeholder:text-gray-400'
@@ -115,14 +114,14 @@ const HeroSection = () => {
                     </div>
 
                     {/* Autocomplete suggestions */}
-                    {showSuggestions && (
+                    {isSuggestionOpen && (
                         <div
                             ref={suggestionsRef}
-                            className="absolute top-full left-0 right-0 mt-1 bg-white rounded-xl border border-gray-200 shadow-lg z-50 overflow-hidden"
+                            className="absolute top-[calc(100%+0.25rem)] left-0 right-0 h-[270px] bg-white rounded-xl border border-gray-200 shadow-lg z-50 overflow-y-auto [scrollbar-gutter:stable]"
                         >
-                            {suggestions.map((suggestion, idx) => (
+                            {suggestions.map((suggestion) => (
                                 <button
-                                    key={idx}
+                                    key={suggestion}
                                     onClick={() => { setQuery(suggestion); doSearch(suggestion); }}
                                     className="w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-purple-50 hover:text-[#6A38C2] flex items-center gap-2 transition-colors border-b border-gray-50 last:border-0"
                                 >

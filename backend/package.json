@@ -9,7 +9,8 @@
     "start": "node index.js",
     "test": "vitest run",
     "test:watch": "vitest",
-    "check": "node --check app.js && node --check index.js"
+    "check": "node --check app.js && node --check index.js",
+    "sync-jobs": "node scripts/syncJobs.js"
   },
   "author": "aasthapathak19",
   "license": "ISC",

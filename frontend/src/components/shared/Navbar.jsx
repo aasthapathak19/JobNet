@@ -78,16 +78,12 @@ const Navbar = () => {
 
                     {!user ? (
                         <div className='flex items-center gap-2'>
-                            <Link to="/login">
-                                <Button variant="outline" className="border-gray-300 text-gray-700 hover:border-[#6A38C2] hover:text-[#6A38C2] h-9">
-                                    Login
-                                </Button>
-                            </Link>
-                            <Link to="/signup">
-                                <Button className="bg-[#6A38C2] hover:bg-[#5b30a6] h-9">
-                                    Sign Up
-                                </Button>
-                            </Link>
+                            <Button asChild variant="outline" className="border-gray-300 text-gray-700 hover:border-[#6A38C2] hover:text-[#6A38C2] h-9">
+                                <Link to="/login">Login</Link>
+                            </Button>
+                            <Button asChild className="bg-[#6A38C2] hover:bg-[#5b30a6] h-9">
+                                <Link to="/signup">Sign Up</Link>
+                            </Button>
                         </div>
                     ) : (
                         <Popover>
@@ -170,12 +166,12 @@ const Navbar = () => {
                     )}
                     {!user ? (
                         <div className="flex gap-2 pt-2">
-                            <Link to="/login" className="flex-1" onClick={() => setMobileOpen(false)}>
-                                <Button variant="outline" className="w-full">Login</Button>
-                            </Link>
-                            <Link to="/signup" className="flex-1" onClick={() => setMobileOpen(false)}>
-                                <Button className="w-full bg-[#6A38C2]">Sign Up</Button>
-                            </Link>
+                            <Button asChild variant="outline" className="flex-1 w-full">
+                                <Link to="/login" onClick={() => setMobileOpen(false)}>Login</Link>
+                            </Button>
+                            <Button asChild className="flex-1 w-full bg-[#6A38C2]">
+                                <Link to="/signup" onClick={() => setMobileOpen(false)}>Sign Up</Link>
+                            </Button>
                         </div>
                     ) : (
                         <div className="pt-2 border-t border-gray-100">

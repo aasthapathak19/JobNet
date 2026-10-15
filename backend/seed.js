@@ -1,8 +1,4 @@
-/**
- * JobNet Comprehensive Seed Script
- * Seeds realistic companies and 30+ jobs covering all major tech categories
- * Run: node seed.js
- */
+
 
 import mongoose from "mongoose";
 import bcrypt from "bcryptjs";

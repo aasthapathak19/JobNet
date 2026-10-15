@@ -21,8 +21,17 @@ api.interceptors.response.use(
     },
 );
 
-export const getErrorMessage = (error, fallback = "Something went wrong. Please try again.") => (
-    error?.response?.data?.message || (error?.code === "ECONNABORTED" ? "The request timed out. Please try again." : fallback)
-);
+export const getErrorMessage = (error, fallback = "Something went wrong. Please try again.") => {
+    const data = error?.response?.data;
+    if (data?.details?.fieldErrors) {
+        const firstFieldError = Object.values(data.details.fieldErrors).flat().find(Boolean);
+        if (firstFieldError) return firstFieldError;
+    }
+    if (data?.details?.formErrors?.length) {
+        const firstFormError = data.details.formErrors.find(Boolean);
+        if (firstFormError) return firstFormError;
+    }
+    return data?.message || (error?.code === "ECONNABORTED" ? "The request timed out. Please try again." : fallback);
+};
 
 export default api;

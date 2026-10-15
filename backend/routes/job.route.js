@@ -1,5 +1,5 @@
 import express from "express";
-import { deleteJob, getAdminJobs, getAllJobs, getJobById, getSavedJobs, postJob, saveJob, unsaveJob, updateJob } from "../controllers/job.controller.js";
+import { deleteJob, getAdminJobs, getAllJobs, getJobById, getSavedJobs, postJob, saveJob, syncExternalJobs, unsaveJob, updateJob } from "../controllers/job.controller.js";
 import { requireAuth, requireRecruiter, requireStudent } from "../middlewares/isAuthenticated.js";
 import { requireCompanyOwnership, requireJobOwnership } from "../middlewares/ownership.js";
 import { validate } from "../middlewares/validate.js";
@@ -8,6 +8,7 @@ import { createJobSchema, idParamSchema, jobSearchSchema, updateJobSchema } from
 const router = express.Router();
 
 router.post("/post", requireAuth, requireRecruiter, validate(createJobSchema), requireCompanyOwnership({ source: "body", key: "companyId" }), postJob);
+router.post("/sync-external", requireAuth, requireRecruiter, syncExternalJobs);
 router.get("/get", validate(jobSearchSchema), getAllJobs);
 router.get("/getadminjobs", requireAuth, requireRecruiter, getAdminJobs);
 router.get("/saved", requireAuth, requireStudent, getSavedJobs);

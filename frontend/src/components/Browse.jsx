@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react'
 import Navbar from './shared/Navbar'
 import Job from './Job';
-import JobSkeleton from './JobSkeleton';
 import { useDispatch, useSelector } from 'react-redux';
 import { clearFilters } from '@/redux/jobSlice';
 import useGetAllJobs from '@/hooks/useGetAllJobs';
@@ -34,9 +33,9 @@ const Browse = () => {
                     </p>
                 </div>
                 
-                {isLoading ? (
-                    <div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4'>
-                        {[...Array(6)].map((_, i) => <JobSkeleton key={i} />)}
+                {isLoading && allJobs.length === 0 ? (
+                    <div className="min-h-[360px]" aria-busy="true" aria-live="polite">
+                        <span className="sr-only">Loading jobs...</span>
                     </div>
                 ) : allJobs.length === 0 ? (
                     <div className="text-center py-16">

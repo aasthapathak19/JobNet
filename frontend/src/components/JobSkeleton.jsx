@@ -1,7 +1,7 @@
 import React from 'react'
 
 const JobSkeleton = () => (
-    <div className="p-5 rounded-xl border border-gray-100 bg-white animate-pulse">
+    <div className="p-5 rounded-xl border border-gray-100 bg-white">
         {/* Company header */}
         <div className="flex items-start gap-3 mb-3">
             <div className="h-10 w-10 bg-gray-200 rounded-lg flex-shrink-0" />

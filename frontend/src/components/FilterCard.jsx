@@ -29,7 +29,7 @@ const FilterOption = ({ label, value, activeValue, onClick }) => {
     return (
         <button
             onClick={() => onClick(isActive ? "" : value)}
-            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-all duration-150 flex items-center justify-between group ${isActive
+            className={`w-full text-left px-3 py-2 rounded-lg text-sm transition-colors duration-150 flex items-center justify-between group ${isActive
                 ? 'bg-[#6A38C2] text-white font-medium'
                 : 'text-gray-700 hover:bg-purple-50 hover:text-[#6A38C2]'
                 }`}
@@ -134,7 +134,7 @@ const FilterCard = () => {
             )}
 
             {/* Filter sections */}
-            <div className="px-4 py-4 max-h-[calc(100vh-220px)] overflow-y-auto">
+            <div className="px-4 py-4 max-h-[calc(100vh-220px)] overflow-y-auto [scrollbar-gutter:stable]">
                 {/* Location */}
                 <FilterSection title="📍 Location" defaultOpen={true}>
                     <div className="space-y-0.5">
@@ -160,25 +160,31 @@ const FilterCard = () => {
                         placeholder="Search roles..."
                         className="w-full text-sm border border-gray-200 rounded-lg px-3 py-1.5 mb-2 outline-none focus:border-[#6A38C2] focus:ring-1 focus:ring-[#6A38C2] transition"
                     />
-                    <div className="space-y-3">
-                        {filteredCategories.map(group => (
-                            <div key={group.group}>
-                                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 px-1">
-                                    {group.group}
-                                </p>
-                                <div className="space-y-0.5">
-                                    {group.roles.map(role => (
-                                        <FilterOption
-                                            key={role}
-                                            label={role}
-                                            value={role}
-                                            activeValue={filters.category}
-                                            onClick={(val) => handleFilter('category', val)}
-                                        />
-                                    ))}
-                                </div>
+                    <div className="h-72 overflow-y-auto [scrollbar-gutter:stable] pr-1">
+                        {filteredCategories.length === 0 ? (
+                            <p className="px-3 py-4 text-sm text-gray-400">No matching roles</p>
+                        ) : (
+                            <div className="space-y-3">
+                                {filteredCategories.map(group => (
+                                    <div key={group.group}>
+                                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-1 px-1">
+                                            {group.group}
+                                        </p>
+                                        <div className="space-y-0.5">
+                                            {group.roles.map(role => (
+                                                <FilterOption
+                                                    key={role}
+                                                    label={role}
+                                                    value={role}
+                                                    activeValue={filters.category}
+                                                    onClick={(val) => handleFilter('category', val)}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
                             </div>
-                        ))}
+                        )}
                     </div>
                 </FilterSection>
 

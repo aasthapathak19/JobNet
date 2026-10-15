@@ -35,6 +35,7 @@ const envSchema = z
         CLOUD_NAME: z.string().optional(),
         API_KEY: z.string().optional(),
         API_SECRET: z.string().optional(),
+        RAPIDAPI_KEY: z.string().optional(),
     })
     .superRefine((values, context) => {
         const secret = values.JWT_SECRET || values.SECRET_KEY;

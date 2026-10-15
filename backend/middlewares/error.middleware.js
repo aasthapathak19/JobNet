@@ -13,7 +13,8 @@ const normalizeError = (error) => {
     if (error instanceof AppError) return error;
 
     if (error instanceof ZodError) {
-        return new AppError("Request validation failed", 400, "VALIDATION_ERROR", error.flatten());
+        const message = error.issues?.[0]?.message || "Request validation failed";
+        return new AppError(message, 400, "VALIDATION_ERROR", error.flatten());
     }
 
     if (error instanceof multer.MulterError) {

@@ -1,12 +1,10 @@
-import React, { useEffect, useCallback } from 'react'
+import React, { useEffect, useCallback, useRef } from 'react'
 import { useDispatch, useSelector } from 'react-redux';
 import { useSearchParams } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
 import { X } from 'lucide-react';
 import Navbar from './shared/Navbar'
 import FilterCard from './FilterCard'
 import Job from './Job';
-import JobSkeleton from './JobSkeleton';
 import { setFilters, clearFilters } from '@/redux/jobSlice';
 import { filtersToURLParams, urlParamsToFilters, hasActiveFilters, SALARY_RANGES } from '@/utils/searchUtils';
 import useGetAllJobs from '@/hooks/useGetAllJobs';
@@ -78,6 +76,17 @@ const EmptyState = ({ filters, onClear }) => {
     );
 };
 
+const filtersAreEqual = (a = {}, b = {}) => (
+    (a.query || "") === (b.query || "") &&
+    (a.location || "") === (b.location || "") &&
+    (a.category || "") === (b.category || "") &&
+    (a.salaryRange || "") === (b.salaryRange || "") &&
+    (a.experience || "") === (b.experience || "") &&
+    (a.remoteType || "") === (b.remoteType || "") &&
+    (a.sort || "recent") === (b.sort || "recent") &&
+    Number(a.page || 1) === Number(b.page || 1)
+);
+
 const Jobs = () => {
     const dispatch = useDispatch();
     const [searchParams, setSearchParams] = useSearchParams();
@@ -86,24 +95,30 @@ const Jobs = () => {
     // Fetch jobs reactively based on filters
     useGetAllJobs();
 
-    // Sync URL params → Redux filters on mount
+    // Keep a ref to latest searchParams so we can compare without depending on it
+    const searchParamsRef = useRef(searchParams);
+    searchParamsRef.current = searchParams;
+
+    // ONE-TIME: Sync URL params → Redux filters on initial mount only
     useEffect(() => {
-        const urlFilters = urlParamsToFilters(searchParams);
+        const urlFilters = urlParamsToFilters(searchParamsRef.current);
         const hasAny = Object.values(urlFilters).some(v => v && v !== 'recent');
         if (hasAny) {
             dispatch(setFilters(urlFilters));
         }
-    }, [dispatch, searchParams]);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []); // Empty array = run only once on mount
 
-    // Sync Redux filters → URL params (debounced-style: whenever filters change)
+    // Sync Redux filters → URL params whenever filters change
+    // Uses ref for searchParams to avoid this effect re-running when URL updates
     useEffect(() => {
         const params = filtersToURLParams(filters);
         const paramStr = params.toString();
-        const currentStr = searchParams.toString();
+        const currentStr = searchParamsRef.current.toString();
         if (paramStr !== currentStr) {
             setSearchParams(params, { replace: true });
         }
-    }, [filters, searchParams, setSearchParams]);
+    }, [filters, setSearchParams]); // NO searchParams dependency here — uses ref instead
 
     const handleSortChange = useCallback((sort) => {
         dispatch(setFilters({ sort }));
@@ -145,13 +160,10 @@ const Jobs = () => {
 
                     {/* Job Results */}
                     <div className='flex-1 min-w-0'>
-                        {isLoading ? (
-                            <>
-                                <div className="h-8 w-48 bg-gray-200 rounded animate-pulse mb-4" />
-                                <div className='grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4'>
-                                    {[...Array(6)].map((_, i) => <JobSkeleton key={i} />)}
-                                </div>
-                            </>
+                        {isLoading && allJobs.length === 0 ? (
+                            <div className="min-h-[360px]" aria-busy="true" aria-live="polite">
+                                <span className="sr-only">Loading jobs...</span>
+                            </div>
                         ) : allJobs.length === 0 ? (
                             <EmptyState filters={filters} onClear={handleClear} />
                         ) : (
@@ -162,19 +174,9 @@ const Jobs = () => {
                                     onSortChange={handleSortChange}
                                 />
                                 <div className='grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4'>
-                                    <AnimatePresence>
-                                        {allJobs.map((job, idx) => (
-                                            <motion.div
-                                                key={job?._id}
-                                                initial={{ opacity: 0, y: 20 }}
-                                                animate={{ opacity: 1, y: 0 }}
-                                                exit={{ opacity: 0, scale: 0.95 }}
-                                                transition={{ duration: 0.2, delay: idx * 0.03 }}
-                                            >
-                                                <Job job={job} />
-                                            </motion.div>
-                                        ))}
-                                    </AnimatePresence>
+                                    {allJobs.map((job) => (
+                                        <Job key={job?._id} job={job} />
+                                    ))}
                                 </div>
                                 {pagination?.totalPages > 1 && (
                                     <nav className="flex items-center justify-center gap-3 mt-8" aria-label="Job result pages">

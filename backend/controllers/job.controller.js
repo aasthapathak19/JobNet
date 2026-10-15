@@ -3,6 +3,7 @@ import SavedJob from "../models/savedJob.model.js";
 import Application from "../models/application.model.js";
 import { AppError } from "../utils/appError.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { syncJobsFromJSearch } from "../services/jobSync.service.js";
 
 const LOCATION_ALIASES = { bangalore: "bengaluru", bengaluru: "bengaluru", gurgaon: "gurugram", gurugram: "gurugram", "delhi ncr": "delhi", delhi: "delhi" };
 const normalizeLocation = (value = "") => LOCATION_ALIASES[value.trim().toLowerCase()] || value.trim().toLowerCase();
@@ -145,4 +146,16 @@ export const unsaveJob = asyncHandler(async (req, res) => {
 export const getSavedJobs = asyncHandler(async (req, res) => {
     const saved = await SavedJob.find({ user: req.id }).sort({ createdAt: -1 }).populate({ path: "job", populate: { path: "company" } }).lean();
     res.json({ success: true, jobs: saved.map((item) => item.job).filter(Boolean) });
+});
+
+export const syncExternalJobs = asyncHandler(async (req, res) => {
+    const { apiKey, query, numPages, country } = req.body;
+    const result = await syncJobsFromJSearch({
+        apiKey,
+        query,
+        userId: req.id,
+        numPages: numPages ? Number(numPages) : 1,
+        country: country || "in",
+    });
+    res.json(result);
 });

@@ -9,11 +9,11 @@ const optionalNumber = (schema) => z.preprocess((value) => value === "" || value
 
 export const registerSchema = z.object({
     body: z.object({
-        fullname: z.string().trim().min(2).max(100),
-        email: z.string().trim().toLowerCase().email().max(254),
-        phoneNumber: z.string().trim().regex(/^\+?[0-9]{7,15}$/, "Enter a valid phone number"),
-        password: z.string().min(8).max(128),
-        role: z.enum(["student", "recruiter"]),
+        fullname: z.string().trim().min(2, "Full name must be at least 2 characters").max(100),
+        email: z.string().trim().toLowerCase().email("Please enter a valid email address").max(254),
+        phoneNumber: z.string().trim().regex(/^\+?[0-9]{7,15}$/, "Enter a valid phone number (7-15 digits)"),
+        password: z.string().min(8, "Password must be at least 8 characters").max(128),
+        role: z.enum(["student", "recruiter"], { message: "Please select whether you are a Student or Recruiter" }),
     }),
     params: emptyObject,
     query: emptyObject,
@@ -21,9 +21,22 @@ export const registerSchema = z.object({
 
 export const loginSchema = z.object({
     body: z.object({
-        email: z.string().trim().toLowerCase().email(),
-        password: z.string().min(1).max(128),
-        role: z.enum(["student", "recruiter"]).optional(),
+        email: z.string().trim().toLowerCase().email("Please enter a valid email address"),
+        password: z.string().min(1, "Password is required").max(128),
+        role: z.preprocess(
+            (value) => (value === "" || value === null ? undefined : value),
+            z.enum(["student", "recruiter"], { message: "Role must be student or recruiter" }).optional()
+        ),
+    }),
+    params: emptyObject,
+    query: emptyObject,
+});
+
+export const resetPasswordSchema = z.object({
+    body: z.object({
+        email: z.string().trim().toLowerCase().email("Please enter a valid email address"),
+        phoneNumber: z.string().trim().regex(/^\+?[0-9]{7,15}$/, "Enter a valid phone number (7-15 digits)"),
+        newPassword: z.string().min(8, "New password must be at least 8 characters").max(128),
     }),
     params: emptyObject,
     query: emptyObject,
