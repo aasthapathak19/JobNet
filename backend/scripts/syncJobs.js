@@ -1,7 +1,7 @@
 import mongoose from "mongoose";
 import dotenv from "dotenv";
 import { User } from "../models/user.model.js";
-import { syncJobsFromJSearch } from "../services/jobSync.service.js";
+import { syncJobsFromJSearch } from "../services/jobSync.js";
 
 dotenv.config();
 
